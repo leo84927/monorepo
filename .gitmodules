@@ -1,0 +1,24 @@
+[submodule "docker"]
+	path = docker
+	url = git@github.com:leo84927/docker.git
+[submodule "scheduler"]
+	path = scheduler
+	url = git@github.com:leo84927/scheduler.git
+[submodule "core"]
+	path = core
+	url = git@github.com:leo84927/core.git
+[submodule "center"]
+	path = center
+	url = git@github.com:leo84927/center.git
+[submodule "exchange_rate"]
+	path = exchange_rate
+	url = git@github.com:leo84927/exchange_rate.git
+[submodule "telegram"]
+	path = telegram
+	url = git@github.com:leo84927/telegram.git
+[submodule "email"]
+	path = email
+	url = git@github.com:leo84927/email.git
+[submodule "bookkeeping"]
+	path = bookkeeping
+	url = git@github.com:leo84927/bookkeeping.git
