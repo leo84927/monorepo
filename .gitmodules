@@ -1,24 +1,32 @@
 [submodule "docker"]
 	path = docker
 	url = git@github.com:leo84927/docker.git
+	branch = master
 [submodule "scheduler"]
 	path = scheduler
 	url = git@github.com:leo84927/scheduler.git
+	branch = master
 [submodule "core"]
 	path = core
 	url = git@github.com:leo84927/core.git
+	branch = master
 [submodule "center"]
 	path = center
 	url = git@github.com:leo84927/center.git
+	branch = master
 [submodule "exchange_rate"]
 	path = exchange_rate
 	url = git@github.com:leo84927/exchange_rate.git
+	branch = master
 [submodule "telegram"]
 	path = telegram
 	url = git@github.com:leo84927/telegram.git
+	branch = master
 [submodule "email"]
 	path = email
 	url = git@github.com:leo84927/email.git
+	branch = master
 [submodule "bookkeeping"]
 	path = bookkeeping
 	url = git@github.com:leo84927/bookkeeping.git
+	branch = master
