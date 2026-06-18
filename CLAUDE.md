@@ -109,6 +109,18 @@ gcloud compute firewall-rules create allow-telegram-webhook
 gcloud compute instances add-tags monorepo-server
   --zone=us-west1-b \
   --tags=telegram-webhook
+
+# systemd 的 .service 位置
+ls /etc/systemd/system/
+# 載入新的 .service
+sudo systemctl daemon-reload
+# 設置為開機啟動
+sudo systemctl enable --now <service_name>
+# systemctl 相關指令
+systemctl status <service_name>
+sudo systemctl start <service_name>
+sudo systemctl stop <service_name>
+sudo systemctl restart <service_name>
 ```
 
 ## scheduler
