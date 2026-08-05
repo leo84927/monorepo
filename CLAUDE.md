@@ -110,6 +110,10 @@ gcloud compute instances add-tags monorepo-server
   --zone=us-west1-b \
   --tags=telegram-webhook
 
+# 僅允許 telegram IP
+gcloud compute firewall-rules update allow-telegram-webhook \
+  --source-ranges=149.154.160.0/20,91.108.4.0/22
+
 # systemd 的 .service 位置
 ls /etc/systemd/system/
 # 載入新的 .service
