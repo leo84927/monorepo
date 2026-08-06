@@ -8,7 +8,8 @@ ZONE="us-west1-b"
 REMOTE_DIR="/home/leo/monorepo"
 
 echo "=== Building ${SERVICE_NAME} ==="
-GOOS=linux GOARCH=amd64 go build -o "${SERVICE_NAME}" "./${SERVICE_NAME}"
+# -trimpath：日誌的 code.file.path 要是模組相對路徑，不能帶建置機的絕對路徑
+GOOS=linux GOARCH=amd64 go build -trimpath -o "${SERVICE_NAME}" "./${SERVICE_NAME}"
 
 echo "=== Uploading ${SERVICE_NAME}.tmp ==="
 gcloud compute scp "./${SERVICE_NAME}/${SERVICE_NAME}" "leo@${VM}:${REMOTE_DIR}/${SERVICE_NAME}.tmp" --zone="${ZONE}"
