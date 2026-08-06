@@ -1,6 +1,13 @@
 # monorepo
 
-個人 side-project，由多個 Go 微服務構成，以 monorepo 管理各服務的 git submodule。核心約束：**服務之間不直接呼叫，一律透過 RabbitMQ 訊息傳遞**；唯一的例外是所有服務都以 library 形式引用 `core`。
+個人 side-project，由多個 Go 微服務構成，以 monorepo 管理各服務的 git submodule。
+
+服務之間有**兩種**通訊方式，兩者並存且用途不同：
+
+- **非同步**：透過 RabbitMQ 的 **job.exchange** 傳遞 **Job**，用於排程觸發的工作
+- **同步**：`telegram` → `bookkeeping` 的 gRPC 直連，用於使用者輸入需要立即回應的場合
+
+此外所有服務都以 library 形式引用 `core`。
 
 本檔案定義跨服務的共用語彙與關係。服務內部實作細節請看各自的 `CLAUDE.md`。
 
@@ -52,9 +59,9 @@ consumer 服務註冊到 `core/initialize.App` 的訊息處理函式。一個服
 |---|---|---|
 | `center` | 唯一 producer | 依 cron 發起 **Job**，發布至 **job.exchange**。不消費任何訊息。 |
 | `exchange_rate` | consumer + producer | 消費 **CurrencyPair**，查詢外部匯率 API，將結果包成 **Envelope** 轉發給 `telegram`。 |
-| `telegram` | consumer | 消費 **Envelope**，依 **EnvelopeType** 格式化後送至 Telegram chat；並負責 Telegram webhook 的接收。 |
+| `telegram` | consumer + gRPC client | 消費 **Envelope**，依 **EnvelopeType** 格式化後送至 Telegram chat；接收 Telegram webhook，並以 gRPC 直接呼叫 `bookkeeping` 寫入使用者輸入的記帳資料。 |
 | `email` | consumer | 消費 **Job**，定期清理個人郵件，或對消費紀錄信件做特殊處理後供 `bookkeeping` 使用。 |
-| `bookkeeping` | consumer | 記帳服務。**全系統唯一可存取資料庫的服務**，資料來源為使用者的 Telegram 輸入與 `email` 的處理結果。 |
+| `bookkeeping` | consumer + gRPC server | 記帳服務。**全系統唯一可存取資料庫的服務**，資料來源為 `telegram` 經 gRPC 傳入的使用者輸入，以及 `email` 的處理結果。 |
 | `core` | library | 共用基礎建設，以 `go get github.com/leo84927/core` 引用，非獨立執行的服務。 |
 | `scheduler` | **Contract repo** | proto 文件倉，見上方定義。 |
 | `docker` | 本地開發 | docker compose 設定，僅供本地啟動整套架構；生產環境不使用容器。 |
@@ -66,6 +73,7 @@ consumer 服務註冊到 `core/initialize.App` 的訊息處理函式。一個服
 - **Envelope** 承載一個 **EnvelopeType**；**CurrencyPair** 承載一個 **CurrencyType**
 - 每個服務讀取 `GLOBAL` 加自己的一個 **Service prefix**
 - 所有服務都依賴 **Contract repo** 與 `core`
+- `telegram` 是 `bookkeeping` 的 gRPC client；這是全系統唯一的服務間同步呼叫
 
 ### 訊息流向
 
@@ -94,7 +102,7 @@ bookkeeping.queue 已綁定，但目前尚無 producer 發布訊息至該 routin
 
 - **時區**：所有服務統一為 `Asia/Taipei`，由 `GLOBAL` 設定鍵提供
 - **設定來源**：Upstash Redis，啟動時載入（見 **設定鍵**、**Service prefix**）
-- **資料庫存取**：只有 `bookkeeping` 可以連資料庫，其他服務要資料一律走訊息
+- **資料庫存取**：只有 `bookkeeping` 可以連資料庫，其他服務要存取資料須經 `bookkeeping`（非同步走 MQ，同步走 gRPC）
 - **proto 來源**：只有 **Contract repo**，不在各服務內自行定義跨服務訊息型別
 
 ## Flagged ambiguities
