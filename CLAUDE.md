@@ -160,3 +160,17 @@ Protocol Buffers 文件倉，除了透過 github 做版本控制
 資料來源為:
 1. 使用者透過 telegram bot 輸入
 2. email 服務對消費紀錄信件做的特殊處理
+
+## Agent skills
+
+### Issue tracker
+
+Issue 與 PRD 存在 GitHub Issues（`leo84927/monorepo`），透過 `gh` CLI 操作。詳見 `docs/agents/issue-tracker.md`。
+
+### Triage labels
+
+沿用五個標準 triage 角色標籤，標籤字串等同角色名稱。詳見 `docs/agents/triage-labels.md`。
+
+### Domain docs
+
+Single-context：根目錄 `CONTEXT.md` + `docs/adr/`。詳見 `docs/agents/domain.md`。
