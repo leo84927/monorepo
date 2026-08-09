@@ -1,6 +1,6 @@
 # monorepo
 
-個人 side-project，由多個 Go 微服務構成，以 monorepo 管理各服務的 git submodule。
+由多個 Go 微服務構成，以 monorepo 管理各服務的 git submodule。
 
 服務之間有**兩種**通訊方式，兩者並存且用途不同：
 
@@ -13,45 +13,56 @@
 
 ## Language
 
-**Job（任務）**
-`center` 依 cron 發起的一個工作單元，以 proto 訊息發布至 **job.exchange**，由單一 consumer 服務處理。
+**Job（任務）**  
+`center` 依 cron 發起的一個工作單元，以 proto 訊息發布至 **job.exchange**，由單一 consumer 服務處理。  
 _Avoid_：task、排程（「排程」專指 cron spec 本身，不指被發出的那則訊息）
 
-**job.exchange**
+**job.exchange**  
 全系統唯一的 topic exchange，位於 vhost `job`。所有跨服務訊息都經過它，沒有第二個 exchange。
 
-**Routing key**
-決定訊息落到哪個 queue。命名為 `<service>`（如 `exchange_rate`、`email`）或 `<service>.<結果>`（如 `telegram.success`、`telegram.error`）。各 queue 以 `<service>.#` wildcard binding 訂閱，因此新增 `<service>.*` 形式的 routing key 不需改動 binding。
+**Routing key**  
+決定訊息落到哪個 queue。命名為 `<service>`（如 `exchange_rate`、`email`）或 `<service>.<結果>`（如 `telegram.success`、`telegram.error`）。  
+各 queue 以 `<service>.#` wildcard binding 訂閱，因此新增 `<service>.*` 形式的 routing key 不需改動 binding。
 
-**Topology**
-exchange、queue、binding 的宣告集合，由 `core/rabbitmq` 在服務啟動時建立。producer 只需宣告 exchange（`LoadBasicTopology`），consumer 需要完整的 queue binding（`LoadCompleteTopology`）。
+**Topology**  
+exchange、queue、binding 的宣告集合，由 `core/rabbitmq` 在服務啟動時建立。  
+producer 只需宣告 exchange（`LoadBasicTopology`），consumer 需要完整的 queue binding（`LoadCompleteTopology`）。
 
-**Envelope**
-跨服務訊息的通用封裝（定義於 `rabbitmq/message.proto`），承載 **EnvelopeType** 與 Data 兩部分。用於接收端必須依型別決定如何解讀內容的場合；單一用途的訊息（如 CurrencyPair、CleanInbox）直接以自己的 proto 傳遞，不包 Envelope。
+**Envelope**  
+跨服務訊息的通用封裝（定義於 `rabbitmq/message.proto`），承載 **EnvelopeType** 與 Data 兩部分。  
+用於接收端必須依型別決定如何解讀內容的場合；單一用途的訊息（如 CurrencyPair、CleanInbox）直接以自己的 proto 傳遞，不包 Envelope。  
 _Avoid_：wrapper、payload（Data 才是 payload）
 
-**EnvelopeType**
-Envelope 的判別欄位，接收端據此決定 Data 的解讀與格式化方式。新增跨服務訊息型別時在此擴充，而非新增 routing key。
+**EnvelopeType**  
+Envelope 的判別欄位，接收端據此決定 Data 的解讀與格式化方式。  
+新增跨服務訊息型別時在此擴充，而非新增 routing key。
 
-**CurrencyPair**
-base 貨幣 + counter 貨幣清單 + **CurrencyType** 的組合。由 `center` 在排程設定中指定，`exchange_rate` 消費。
+**CurrencyPair**  
+base 貨幣 + counter 貨幣清單 + **CurrencyType** 的組合。  
+由 `center` 在排程設定中指定，`exchange_rate` 消費。
 
-**CurrencyType**
-`FIAT` 或 `CRYPTO`，決定 `exchange_rate` 查詢哪個外部 API。這是分派的唯一依據。
+**CurrencyType**  
+`FIAT` 或 `CRYPTO`，決定 `exchange_rate` 查詢哪個外部 API。  
+這是分派的唯一依據。
 
-**設定鍵（Setting key）**
-存放在 Upstash Redis 的一筆環境變數。服務啟動時由 `core/config` 一次性載入為記憶體中的設定，執行期不再回查 Redis。
+**設定鍵（Setting key）**  
+存放在 Upstash Redis 的一筆環境變數。  
+服務啟動時由 `core/config` 一次性載入為記憶體中的設定，執行期不再回查 Redis。  
 _Avoid_：環境變數（真正的 OS 環境變數只有 `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` 三個，用來連上 Redis 本身）
 
-**Service prefix**
-設定鍵的命名空間。`GLOBAL:*` 為全服務共用（RabbitMQ、Logger、時區等），`<PREFIX>:*` 為單一服務專屬（如 `TELEGRAM:*`）。服務只載入 `GLOBAL` 加自己的 prefix，看不到其他服務的設定。
+**Service prefix**  
+設定鍵的命名空間。  
+`GLOBAL:*` 為全服務共用（RabbitMQ、Logger、時區等），`<PREFIX>:*` 為單一服務專屬（如 `TELEGRAM:*`）。  
+服務只載入 `GLOBAL` 加自己的 prefix，看不到其他服務的設定。
 
-**Contract repo**
-`scheduler`，所有 proto 的單一真實來源。經由 BSR（`buf.build/leo84927-proto/scheduler`）發布，各服務以 `go get` 引用產生的 Go 程式碼。改動它會同時影響多個服務。
+**Contract repo**  
+`scheduler`，所有 proto 的單一真實來源。  
+經由 BSR（`buf.build/leo84927-proto/scheduler`）發布，各服務以 `go get` 引用產生的 Go 程式碼，改動它會同時影響多個服務。  
 _Avoid_：scheduler service（`scheduler` 不是一個會執行的服務，只是文件倉；真正的排程器是 `center`）
 
-**Worker**
-consumer 服務註冊到 `core/initialize.App` 的訊息處理函式。一個服務可註冊多個 worker；`center` 是唯一沒有 worker 的服務。
+**Worker**  
+consumer 服務註冊到 `core/initialize.App` 的訊息處理函式。  
+一個服務可註冊多個 worker；`center` 是唯一沒有 worker 的服務。
 
 ## 服務職責
 
