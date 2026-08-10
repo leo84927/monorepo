@@ -6,6 +6,8 @@ disable-model-invocation: true
 
 # GCP 維運指令
 
+建置、上傳、重啟這條部署流程見 `.claude/rules/deployment.md`；本檔只收 VM／網路／systemd 的維運指令。
+
 ## VM 本身
 
 ```sh
@@ -29,10 +31,6 @@ gcloud compute instances delete monorepo-server --zone=us-west1-b
 
 # ssh
 gcloud compute ssh monorepo-server --zone=us-west1-b
-# build
-GOOS=linux GOARCH=amd64 go build -trimpath -o <service_name> <path>
-# scp
-gcloud compute scp <binary_file> monorepo-server:/home/leo/monorepo/ --zone=us-west1-b
 ```
 
 ## 靜態 IP / 防火牆

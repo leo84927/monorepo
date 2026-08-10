@@ -32,8 +32,10 @@ sudo systemctl restart <service>
 
 日誌的其中一個參數 `code.file.path` 取自 binary 內記錄的編譯期路徑，**不帶 `-trimpath` 就會是建置機的絕對路徑**
 （例如 `/Users/leo/go/src/monorepo/telegram/handle/webhook.go`）。  
-帶上 `-trimpath` 後會裁成相對路徑：`telegram/handle/webhook.go`，core 為
-`github.com/leo84927/core/logger/log.go`。
+帶上 `-trimpath` 後會裁成模組相對路徑：`telegram/handle/webhook.go`；非 main module 一律用 module path，
+所以 core 為 `github.com/leo84927/core/logger/log.go`。日誌本身的三個 `code.*` 欄位見 `core/CLAUDE.md`
+的「Logger caller 來源位置」。
 
-因此**所有**建置管道都必須帶 `-trimpath`，目前共四處：本檔上方的部署流程、本檔下方「常用指令」的 build、`deploy.sh`、`docker/application.yml`。  
+因此**所有**建置管道都必須帶 `-trimpath`，目前共三處：  
+本檔上方的部署流程、`deploy.sh`、`docker/application.yml`。  
 新增建置管道時要一併帶上，否則同一份程式碼會因為用哪個指令建置而產生不同的日誌路徑。
