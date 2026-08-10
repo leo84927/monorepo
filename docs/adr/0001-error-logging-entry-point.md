@@ -72,4 +72,5 @@ record := slog.NewRecord(time.Now(), slog.LevelError, msg, pcs[0])
 - 錯誤日誌的 `code.line.number` 指向真正出錯的呼叫端，issue #1 的價值在錯誤情境下得以保留。
 - 錯誤日誌帶上 trace 關聯。
 - 新增的約束：`core` 內的錯誤日誌一律走 `logger.Error`，不再直接呼叫 `slog.Error`。非錯誤等級（`slog.Info` / `slog.Debug`）不受此 ADR 約束，維持原樣。
+- **前提在 [issue #3](https://github.com/leo84927/monorepo/issues/3) 之後改變（本 ADR 的決策不變）**：本 ADR 推論「二之一」時的前提是「`core` 這次改寫的呼叫點幾乎全是外部錯誤」。issue #3 讓 `core/rabbitmq` 的錯誤自誕生起就用 `eris.New` / `eris.Wrap` 攜帶堆疊，因此對 rabbitmq 的錯誤而言，`stacktrace()` 走的是 eris 自己的堆疊，PC 補償退居備援；`mariadb` / `redis` 等尚未包裝的外部錯誤仍靠補償路徑。補償邏輯本身沒有被移除，也沒有被取代。
 - `permanentIfNeeded` 與 `buildDB` 的簽章多了 `ctx`，屬 `core` 內部函式，不影響各服務。
