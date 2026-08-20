@@ -84,7 +84,9 @@ consumer 服務註冊到 `core/initialize.App` 的訊息處理函式。
 - **Envelope** 承載一個 **EnvelopeType**；**CurrencyPair** 承載一個 **CurrencyType**
 - 每個服務讀取 `GLOBAL` 加自己的一個 **Service prefix**
 - 所有服務都依賴 **Contract repo** 與 `core`
-- `telegram` 是 `bookkeeping` 的 gRPC client；這是全系統唯一的服務間同步呼叫
+- `telegram` 是 `bookkeeping` 的 gRPC client；這是全系統唯一的服務間同步呼叫。兩端都以 `otelgrpc` 的
+  StatsHandler instrument，`traceparent` 隨 gRPC metadata 傳遞，因此一次使用者記帳輸入在 Grafana 上是
+  單一 trace：webhook span → gRPC 呼叫端 span → `bookkeeping` 服務端 span
 
 ### 訊息流向
 
@@ -115,6 +117,9 @@ bookkeeping.queue 已綁定，但目前尚無 producer 發布訊息至該 routin
 - **設定來源**：Upstash Redis，啟動時載入（見 **設定鍵**、**Service prefix**）
 - **資料庫存取**：只有 `bookkeeping` 可以連資料庫，其他服務要存取資料須經 `bookkeeping`（非同步走 MQ，同步走 gRPC）
 - **proto 來源**：只有 **Contract repo**，不在各服務內自行定義跨服務訊息型別
+- **trace 跨服務不斷開**：非同步走 AMQP headers（由 `core` 的 producer / consumer 負責），同步走 gRPC
+  metadata（由兩端的 `otelgrpc` StatsHandler 負責）。接收端的日誌一律要帶 handler 收到的 `ctx`，
+  否則日誌寫不出 `trace_id` / `span_id`，在 Grafana 上就和 span 脫鉤
 
 ## Flagged ambiguities
 
