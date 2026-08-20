@@ -25,7 +25,16 @@
 | exchange_rate | `./exchange_rate/CLAUDE.md` |
 | telegram | `./telegram/CLAUDE.md` |
 | email | （尚無） |
-| bookkeeping | （尚無） |
+| bookkeeping | `./bookkeeping/CLAUDE.md` |
+
+## 各服務的通用 CI
+```sh
+# 測試（-race、-v、-count=1 每次測試必加）
+go test ......... -race -v -count=1
+
+# Lint（CI 用 golangci-lint，只掃變更套件）
+golangci-lint run <路徑>
+```
 
 ## Agent skills
 
