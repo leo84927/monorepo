@@ -120,6 +120,7 @@ bookkeeping.queue 已綁定，但目前尚無 producer 發布訊息至該 routin
 - **trace 跨服務不斷開**：非同步走 AMQP headers（由 `core` 的 producer / consumer 負責），同步走 gRPC
   metadata（由兩端的 `otelgrpc` StatsHandler 負責）。接收端的日誌一律要帶 handler 收到的 `ctx`，
   否則日誌寫不出 `trace_id` / `span_id`，在 Grafana 上就和 span 脫鉤
+- **投遞語意**：MQ 上的訊息交付為 **at-least-once** —— 一則訊息可能被執行**一次以上**。發布端（`center`）與所有消費端都受此約束
 
 ## Flagged ambiguities
 
