@@ -21,7 +21,7 @@ _Avoid_：task、排程（「排程」專指 cron spec 本身，不指被發出�
 全系統唯一的 topic exchange，位於 vhost `job`。所有跨服務訊息都經過它，沒有第二個 exchange。
 
 **Routing key**  
-決定訊息落到哪個 queue。命名為 `<service>`（如 `exchange_rate`、`email`）或 `<service>.<結果>`（如 `telegram.success`、`telegram.error`）。  
+決定訊息落到哪個 queue。命名為 `<service>`（如 `exchange_rate`）或 `<service>.<結果>`（如 `telegram.success`、`telegram.error`）。  
 各 queue 以 `<service>.#` wildcard binding 訂閱，因此新增 `<service>.*` 形式的 routing key 不需改動 binding。
 
 **Topology**  
@@ -46,8 +46,9 @@ base 貨幣 + counter 貨幣清單 + **CurrencyType** 的組合。
 這是分派的唯一依據。
 
 **設定鍵（Setting key）**  
-存放在 Upstash Redis 的一筆環境變數。  
+存放在 Upstash Redis 的一筆設定值。  
 服務啟動時由 `core/config` 一次性載入為記憶體中的設定，執行期不再回查 Redis。  
+_Also known as_：proto 上的型別名為 `XxxEnvKey`（`scheduler/env/kv.proto`），屬歷史名稱，刻意保留不改；enum 的**值名**即 Redis 鍵名（`:` 轉為 `_`）。  
 _Avoid_：環境變數（真正的 OS 環境變數只有 `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` 三個，用來連上 Redis 本身）
 
 **Service prefix**  
@@ -71,8 +72,7 @@ consumer 服務註冊到 `core/initialize.App` 的訊息處理函式。
 | `center` | 唯一 producer | 依 cron 發起 **Job**，發布至 **job.exchange**。不消費任何訊息。 |
 | `exchange_rate` | consumer + producer | 消費 **CurrencyPair**，查詢外部匯率 API，將結果包成 **Envelope** 轉發給 `telegram`。 |
 | `telegram` | consumer + gRPC client | 消費 **Envelope**，依 **EnvelopeType** 格式化後送至 Telegram chat；接收 Telegram webhook，並以 gRPC 直接呼叫 `bookkeeping` 寫入使用者輸入的記帳資料。 |
-| `email` | consumer | 消費 **Job**，定期清理個人郵件，或對消費紀錄信件做特殊處理後供 `bookkeeping` 使用。 |
-| `bookkeeping` | consumer + gRPC server | 記帳服務。**全系統唯一可存取資料庫的服務**，資料來源為 `telegram` 經 gRPC 傳入的使用者輸入，以及 `email` 的處理結果。 |
+| `bookkeeping` | consumer + gRPC server | 記帳服務。**全系統唯一可存取資料庫的服務**，資料來源為 `telegram` 經 gRPC 傳入的使用者輸入。 |
 | `core` | library | 共用基礎建設，以 `go get github.com/leo84927/core` 引用，非獨立執行的服務。 |
 | `scheduler` | **Contract repo** | proto 文件倉，見上方定義。 |
 | `docker` | 本地開發 | docker compose 設定，僅供本地啟動整套架構；生產環境不使用容器。 |
@@ -93,20 +93,19 @@ consumer 服務註冊到 `core/initialize.App` 的訊息處理函式。
 | 發送者 | Routing key | 接收 queue | 訊息格式 |
 |---|---|---|---|
 | `center` | `exchange_rate` | exchange_rate.queue | CurrencyPair proto |
-| `center` | `email` | email.queue | CleanInbox proto |
 | `exchange_rate` | `telegram.success` | telegram.queue | Envelope（ExchangeRate） |
 | `exchange_rate` | `telegram.error` | telegram.queue | Envelope（錯誤訊息） |
 
 ```
-                            job.exchange (topic)
-                                   │
-         ┌─────────────────┬───────┴───────┬─────────────────┐
-         │                 │               │                 │
-    exchange_rate        email         telegram.*       bookkeeping
-         │                 │               │                 │
-         ▼                 ▼               ▼                 ▼
- exchange_rate.queue  email.queue    telegram.queue   bookkeeping.queue
-bind: exchange_rate.# bind: email.#  bind: telegram.# bind: bookkeeping.#
+                    job.exchange (topic)
+                              │
+          ┌───────────────────┼───────────────────┐
+          │                   │                   │
+    exchange_rate         telegram.*         bookkeeping
+          │                   │                   │
+          ▼                   ▼                   ▼
+ exchange_rate.queue    telegram.queue    bookkeeping.queue
+bind: exchange_rate.#  bind: telegram.#  bind: bookkeeping.#
 ```
 
 bookkeeping.queue 已綁定，但目前尚無 producer 發布訊息至該 routing key。
@@ -124,6 +123,4 @@ bookkeeping.queue 已綁定，但目前尚無 producer 發布訊息至該 routin
 
 ## Flagged ambiguities
 
-- **Consul → Redis 遷移未收尾**：`scheduler` 的 proto 檔仍名為 `consul/kv.proto`、enum 仍稱 `XxxEnvKey`，`core/consul/` 也還在（已標註棄用）。實際的設定來源已是 Upstash Redis。命名尚未跟上，讀到 `consul` 字樣時一律理解為 **設定鍵** 機制。
 - **`scheduler` 一詞有兩個意思**：`Contract repo` 的 repo 名稱，以及 `center` 內部的 cron 元件（`center/scheduler/`）。提到跨服務的 proto 時用 **Contract repo**，提到 cron 時明確寫 `center/scheduler`。
-- **`email` 與 `bookkeeping` 之間的資料傳遞方式未定案**：`email` 對消費紀錄信件做特殊處理後應交給 `bookkeeping`，但 bookkeeping.queue 目前無 producer，這條路徑尚未實作。

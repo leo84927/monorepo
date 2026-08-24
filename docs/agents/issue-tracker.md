@@ -13,7 +13,7 @@
 
 repo 由 `git remote -v` 推斷 —— 在 clone 目錄內執行時 `gh` 會自動判斷。
 
-> **submodule 注意事項。** 各服務目錄（`center/`、`core/`、`exchange_rate/`、`telegram/`、`email/`、`bookkeeping/`、`docker/`、`scheduler/`）都是獨立的 git submodule，各自對應一個 GitHub repo。在這些目錄內執行 `gh` 會打到**該 submodule 自己的** issue，而不是 monorepo 的。除非任務明確指定要操作某個服務自己的 tracker，否則一律從 monorepo 根目錄執行 `gh`，讓 issue 落在 `leo84927/monorepo`。
+> **submodule 注意事項。** 各服務目錄（`center/`、`core/`、`exchange_rate/`、`telegram/`、`bookkeeping/`、`docker/`、`scheduler/`）都是獨立的 git submodule，各自對應一個 GitHub repo。在這些目錄內執行 `gh` 會打到**該 submodule 自己的** issue，而不是 monorepo 的。除非任務明確指定要操作某個服務自己的 tracker，否則一律從 monorepo 根目錄執行 `gh`，讓 issue 落在 `leo84927/monorepo`。
 
 ## 把 pull request 當作 triage 來源
 

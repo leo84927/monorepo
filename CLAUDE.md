@@ -24,7 +24,6 @@
 | center | `./center/CLAUDE.md` |
 | exchange_rate | `./exchange_rate/CLAUDE.md` |
 | telegram | `./telegram/CLAUDE.md` |
-| email | （尚無） |
 | bookkeeping | `./bookkeeping/CLAUDE.md` |
 
 ## 各服務的通用 CI

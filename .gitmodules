@@ -22,10 +22,6 @@
 	path = telegram
 	url = git@github.com:leo84927/telegram.git
 	branch = master
-[submodule "email"]
-	path = email
-	url = git@github.com:leo84927/email.git
-	branch = master
 [submodule "bookkeeping"]
 	path = bookkeeping
 	url = git@github.com:leo84927/bookkeeping.git
