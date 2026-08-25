@@ -121,6 +121,37 @@ bookkeeping.queue 已綁定，但目前尚無 producer 發布訊息至該 routin
   否則日誌寫不出 `trace_id` / `span_id`，在 Grafana 上就和 span 脫鉤
 - **投遞語意**：MQ 上的訊息交付為 **at-least-once** —— 一則訊息可能被執行**一次以上**。發布端（`center`）與所有消費端都受此約束
 
+## 超時預算
+
+### 對外呼叫
+
+| 位置                                             | 值      | 重試              | 承載機制                                                                                        |
+|-------------------------------------------------|---------|------------------|------------------------------------------------------------------------------------------------|
+| `exchange_rate` → 向第三方查詢匯率                 | 5s      | X                | `http.Client.Timeout`；`main` 建**一個** client 傳給兩個 adapter                                  |
+| `telegram` → Telegram Bot API（getMe）           | 5s      | X                | 同一個 client 的 `Timeout`；失敗**不重試、直接不啟動**，重試交給 systemd                              |
+| `telegram` → Telegram Bot API（sendMessage）     | 單次 5s  | **V** `{3, 20s}` | `http.Client.Timeout` ＋ `BotSender.Send` 內部的 backoff                                         |
+| `telegram` → `bookkeeping` gRPC                 | 5s      | X                | 呼叫端 `context.WithTimeout`；gRPC 自動把 deadline 傳給 `bookkeeping`                           |
+| `bookkeeping` consumer（`KeepAliveHandler`）     | 5s      | X                | 呼叫端 `context.WithTimeout`（這條路沒有上游 deadline 可繼承）                                   |
+| MariaDB 連線建立                                 | 5s      | **V** `{3, 20s}` | 值為 `GLOBAL_MARIADB_TIMEOUT`；重試由 `GLOBAL_MARIADB_CONN_MAX_RETRIES`／`CONN_MAX_ELAPSED_TIME` |
+| MariaDB socket 讀取                             | 5s      | X                | 設定鍵 `GLOBAL_MARIADB_READ_TIMEOUT`                                                           |
+| MariaDB socket 寫入                             | 5s      | X                | 設定鍵 `GLOBAL_MARIADB_WRITE_TIMEOUT`                                                          |
+| Redis 連線建立                                   | 5s      | **V** `{3, 30s}` | 值為 `DialTimeout`，`core/config` 寫死                                                          |
+| Redis 讀取／寫入                                 | 各 5s   | X                | `ReadTimeout`／`WriteTimeout`，`core/config` 寫死                                                |
+| RabbitMQ 發布                                   | **無**  | **V** `{3, 5s}`  | `ConnectionManager.Config`；單次發布沒有獨立 timeout，只有重試總預算                             |
+
+### 關機等待
+
+SIGTERM 之後的順序：errgroup 收攤 → `RabbitmqCM.Close()` → OTLP flush。後兩段嚴格串行。
+
+| 步驟 | 上限 |
+|---|---|
+| consumer drain（`wg.Wait()`） | 不設上限，但所有對外呼叫皆 ctx-aware，取消即返回 |
+| `telegram` webhook `Server.Shutdown` | 5s |
+| `bookkeeping` `GracefulStop`，逾時後 `Stop()` | 5s |
+| AMQP `Connection.CloseDeadline` | 5s |
+| OTLP log exporter `Shutdown` | 5s |
+| OTLP trace exporter `Shutdown` | 5s |
+
 ## Flagged ambiguities
 
 - **`scheduler` 一詞有兩個意思**：`Contract repo` 的 repo 名稱，以及 `center` 內部的 cron 元件（`center/scheduler/`）。提到跨服務的 proto 時用 **Contract repo**，提到 cron 時明確寫 `center/scheduler`。
