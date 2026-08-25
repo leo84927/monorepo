@@ -1,6 +1,16 @@
 # mono repository
 架構全貌、跨服務語彙與訊息流向見根目錄 `CONTEXT.md`。
 
+## 禁止事項
+
+### 禁止自行部署
+
+除非使用者**明確要求**，agent 一律禁止執行部署與生產環境操作：
+
+- 執行根目錄 `./deploy.sh`，或任何等價的「建置 → 上傳 → 重啟」流程
+- 以 `gcloud compute ssh` / `gcloud compute scp` 連到生產 VM
+- 在生產 VM 上執行 `systemctl restart` / `start` / `stop`
+
 ## 版本命名規範
 三碼命名規則，例：v1.2.3
 
