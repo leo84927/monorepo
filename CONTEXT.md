@@ -132,7 +132,7 @@ bookkeeping.queue 已綁定，但目前尚無 producer 發布訊息至該 routin
 | `telegram` → Telegram Bot API（sendMessage）     | 單次 5s  | **V** `{3, 20s}` | `http.Client.Timeout` ＋ `BotSender.Send` 內部的 backoff                                         |
 | `telegram` → `bookkeeping` gRPC                 | 5s      | X                | 呼叫端 `context.WithTimeout`；gRPC 自動把 deadline 傳給 `bookkeeping`                           |
 | `bookkeeping` consumer（`KeepAliveHandler`）     | 5s      | X                | 呼叫端 `context.WithTimeout`（這條路沒有上游 deadline 可繼承）                                   |
-| MariaDB 連線建立                                 | 5s      | **V** `{3, 20s}` | 值為 `GLOBAL_MARIADB_TIMEOUT`；重試由 `GLOBAL_MARIADB_CONN_MAX_RETRIES`／`CONN_MAX_ELAPSED_TIME` |
+| MariaDB 連線建立                                 | 5s      | **V** `{3, 20s}` | 值為 `GLOBAL_MARIADB_TIMEOUT`，**並受呼叫端 ctx 約束**（`buildDB` 走 `PingContext`，兩者取先到者）；重試由 `GLOBAL_MARIADB_CONN_MAX_RETRIES`／`CONN_MAX_ELAPSED_TIME` |
 | MariaDB socket 讀取                             | 5s      | X                | 設定鍵 `GLOBAL_MARIADB_READ_TIMEOUT`                                                           |
 | MariaDB socket 寫入                             | 5s      | X                | 設定鍵 `GLOBAL_MARIADB_WRITE_TIMEOUT`                                                          |
 | Redis 連線建立                                   | 5s      | **V** `{3, 30s}` | 值為 `DialTimeout`，`core/config` 寫死                                                          |
@@ -147,7 +147,7 @@ SIGTERM 之後的順序：errgroup 收攤 → `RabbitmqCM.Close()` → OTLP flus
 
 | 步驟 | 上限 |
 |---|---|
-| consumer drain（`wg.Wait()`） | 不設上限，但所有對外呼叫皆 ctx-aware，取消即返回 |
+| consumer drain（`wg.Wait()`） | 不設上限，但所有對外呼叫皆 ctx-aware，取消即返回（MariaDB 連線建立自 `core` v2.1.0 的 `PingContext` 起才成立） |
 | `telegram` webhook `Server.Shutdown` | 5s |
 | `bookkeeping` `GracefulStop`，逾時後 `Stop()` | 5s |
 | AMQP `Connection.CloseDeadline` | 5s |
