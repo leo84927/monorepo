@@ -169,3 +169,4 @@ type PublishHandler func(ctx context.Context, exchange, key string, body []byte)
 - `Settings` 裡 `ServiceName` 出現三次（頂層、`Logger`、`RabbitMQ.Config`）。這不是漂移 —— 頂層是真實來源，另兩份是各 adapter 自己的設定複本，`Load` 一次填好。
 - `GLOBAL:BOOKKEEPING_SOCK_FILE_PATH` 是 GLOBAL 鍵、`telegram` 與 `bookkeeping` 共讀，因此不列進 `ServiceKeys`，由 `Load` 當 GLOBAL 必要鍵驗證並以 `Settings.GrpcSockPath` 回傳。`center` 與 `exchange_rate` 也會要求它存在（它們不讀，但驗證是無條件的）。
 - `CONTEXT.md` 不需要改動：`Spec` / `Settings` 是 `core` 的實作型別，不是跨服務語彙；既有的「設定鍵」與「Service prefix」兩則定義在這批改動後全部仍然成立。
+- **這一條在 [issue #29](https://github.com/leo84927/monorepo/issues/29) 之後部分不成立（本 ADR 的決策不變）**：`CONTEXT.md` 的 **Topology** 條目原本點名 `LoadBasicTopology` / `LoadCompleteTopology`，本 ADR 把這兩個函式刪掉，該條目因此必須改述，改述時引用了 `Spec.Queue`。「設定鍵」與「Service prefix」兩則定義仍然不必動。詳見 `docs/adr/0004-core-v2-module-path.md`。

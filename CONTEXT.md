@@ -25,8 +25,8 @@ _Avoid_：task、排程（「排程」專指 cron spec 本身，不指被發出�
 各 queue 以 `<service>.#` wildcard binding 訂閱，因此新增 `<service>.*` 形式的 routing key 不需改動 binding。
 
 **Topology**  
-exchange、queue、binding 的宣告集合，由 `core/rabbitmq` 在服務啟動時建立。  
-producer 只需宣告 exchange（`LoadBasicTopology`），consumer 需要完整的 queue binding（`LoadCompleteTopology`）。
+exchange、queue、binding 的宣告集合，由 `core/rabbitmq` 的 `ConnectionManager.InitTopology` 在服務啟動時建立。  
+producer 與 consumer 的差別由 `core/config` 的 `Spec` 宣告，而不是由呼叫不同的載入函式決定：`Spec.Queue` 為 nil 代表只當 producer，Topology 只帶 exchange；non-nil 代表 consumer，Topology 額外帶自己那一條 queue 與 binding。
 
 **Envelope**  
 跨服務訊息的通用封裝（定義於 `rabbitmq/message.proto`），承載 **EnvelopeType** 與 Data 兩部分。  
@@ -73,7 +73,7 @@ consumer 服務註冊到 `core/initialize.App` 的訊息處理函式。
 | `exchange_rate` | consumer + producer | 消費 **CurrencyPair**，查詢外部匯率 API，將結果包成 **Envelope** 轉發給 `telegram`。 |
 | `telegram` | consumer + gRPC client | 消費 **Envelope**，依 **EnvelopeType** 格式化後送至 Telegram chat；接收 Telegram webhook，並以 gRPC 直接呼叫 `bookkeeping` 寫入使用者輸入的記帳資料。 |
 | `bookkeeping` | consumer + gRPC server | 記帳服務。**全系統唯一可存取資料庫的服務**，資料來源為 `telegram` 經 gRPC 傳入的使用者輸入。 |
-| `core` | library | 共用基礎建設，以 `go get github.com/leo84927/core` 引用，非獨立執行的服務。 |
+| `core` | library | 共用基礎建設，以 `go get github.com/leo84927/core/v2` 引用，非獨立執行的服務。 |
 | `scheduler` | **Contract repo** | proto 文件倉，見上方定義。 |
 | `docker` | 本地開發 | docker compose 設定，僅供本地啟動整套架構；生產環境不使用容器。 |
 
@@ -138,6 +138,8 @@ bookkeeping.queue 已綁定，但目前尚無 producer 發布訊息至該 routin
 | Redis 連線建立                                   | 5s      | **V** `{3, 30s}` | 值為 `DialTimeout`，`core/config` 寫死                                                          |
 | Redis 讀取／寫入                                 | 各 5s   | X                | `ReadTimeout`／`WriteTimeout`，`core/config` 寫死                                                |
 | RabbitMQ 發布                                   | **無**  | **V** `{3, 5s}`  | `ConnectionManager.Config`；單次發布沒有獨立 timeout，只有重試總預算                             |
+
+**`*http.Client` 是建構子的必填參數。** 需要對外發 HTTP 請求的型別一律從呼叫端收 `*http.Client`，不在套件內自建 —— 上表每個值才有唯一的落點，而不是散在各處的 `&http.Client{}`。`core` 全庫沒有 import `net/http`，所以這條規則的約束對象只有 `exchange_rate` 與 `telegram` 兩端。
 
 ### 關機等待
 
