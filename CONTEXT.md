@@ -5,7 +5,7 @@
 服務之間有**兩種**通訊方式，兩者並存且用途不同：
 
 - **非同步**：透過 RabbitMQ 的 **job.exchange** 傳遞 **Job** 觸發的訊息，用於排程觸發的工作
-- **同步**：`telegram` → `bookkeeping` 的 gRPC 直連，用於使用者輸入需要立即回應的場合
+- **同步**：`telegram` → `bookkeeping` 的 gRPC 直連，用於 **指令** 需要立即回應的場合
 
 此外所有服務都以 library 形式引用 `core`。
 
@@ -65,14 +65,24 @@ _Avoid_：scheduler service（`scheduler` 不是一個會執行的服務，只�
 consumer 服務註冊到 `core/initialize.App` 的訊息處理函式。  
 一個服務可註冊多個 worker；`center` 是唯一沒有 worker 的服務。
 
+**使用者**  
+系統的擁有者，全系統只有一位，所有記帳資料都屬於使用者。bot 只與使用者的私人對話（private chat）往來：**通知**推送到這裡，**指令**也只接受從這裡傳來的。
+
+**指令**  
+使用者在 Telegram 傳給 bot 的文字（如 `/group`），由 `telegram` 的 webhook 同步處理，在同一次請求內回覆。
+
+**通知**  
+`telegram` 消費 **Envelope** 後，主動推送到使用者私人對話（設定鍵 `TELEGRAM_CHAT_ID`）的訊息，如匯率報價與錯誤。  
+_Avoid_：告警（告警只是錯誤那一種通知）
+
 ## 服務職責
 
 | 服務 | 角色 | 職責 |
 |---|---|---|
 | `center` | 唯一 producer | 依 cron 發起 **Job**，發布至 **job.exchange**。不消費任何訊息。 |
 | `exchange_rate` | consumer + producer | 消費 **CurrencyPair**，查詢外部匯率 API，將結果包成 **Envelope** 轉發給 `telegram`。 |
-| `telegram` | consumer + gRPC client | 消費 **Envelope**，依 **EnvelopeType** 格式化後送至 Telegram chat；接收 Telegram webhook，並以 gRPC 直接呼叫 `bookkeeping` 寫入使用者輸入的記帳資料。 |
-| `bookkeeping` | consumer + gRPC server | 記帳服務。**全系統唯一可存取資料庫的服務**，資料來源為 `telegram` 經 gRPC 傳入的使用者輸入。 |
+| `telegram` | consumer + gRPC client | 消費 **Envelope**，依 **EnvelopeType** 格式化成 **通知** 推送給使用者；接收 Telegram webhook 處理 **指令**，需要記帳資料時以 gRPC 查詢 `bookkeeping`。 |
+| `bookkeeping` | consumer + gRPC server | 記帳服務。**全系統唯一可存取資料庫的服務**；系統內尚無寫入路徑，gRPC 只提供查詢。 |
 | `core` | library | 共用基礎建設，以 `go get github.com/leo84927/core/v2` 引用，非獨立執行的服務。 |
 | `scheduler` | **Contract repo** | proto 文件倉，見上方定義。 |
 | `docker` | 本地開發 | docker compose 設定，僅供本地啟動整套架構；生產環境不使用容器。 |
@@ -85,7 +95,7 @@ consumer 服務註冊到 `core/initialize.App` 的訊息處理函式。
 - 每個服務讀取 `GLOBAL` 加自己的一個 **Service prefix**
 - 所有服務都依賴 **Contract repo** 與 `core`
 - `telegram` 是 `bookkeeping` 的 gRPC client；這是全系統唯一的服務間同步呼叫。兩端都以 `otelgrpc` 的
-  StatsHandler instrument，`traceparent` 隨 gRPC metadata 傳遞，因此一次使用者記帳輸入在 Grafana 上是
+  StatsHandler instrument，`traceparent` 隨 gRPC metadata 傳遞，因此一次 **指令** 在 Grafana 上是
   單一 trace：webhook span → gRPC 呼叫端 span → `bookkeeping` 服務端 span
 
 ### 訊息流向
