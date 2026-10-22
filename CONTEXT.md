@@ -75,6 +75,13 @@ _Avoid_：用 worker 指稱 `core/initialize` 的 `MQWorker`／`HttpWorker`（�
 `telegram` 消費 **Envelope** 後，主動推送到使用者私人對話（設定鍵 `TELEGRAM_CHAT_ID`）的訊息，如匯率報價與錯誤。  
 _Avoid_：告警（告警只是錯誤那一種通知）
 
+**帳戶**  
+使用者存放資金的地方（如某個銀行戶頭、某張信用卡），各自有幣種與餘額。每個帳戶恰好屬於一個 **帳戶分組**。
+
+**帳戶分組**  
+帳戶的分類（如現金、銀行、信用卡），只有名稱。由 `bookkeeping` 擁有，經 gRPC 的 `Group` 與 `/group` **指令** 提供給使用者查詢。  
+_Avoid_：單獨說 group 或「群組」（與 Telegram 的群組對話混淆）；程式碼的 `Group`、`/group` 屬既有名稱，不改
+
 ## 服務職責
 
 | 服務 | 角色 | 職責 |
