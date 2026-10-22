@@ -53,9 +53,8 @@ _Also known as_：proto 上的型別名為 `XxxEnvKey`（`scheduler/env/kv.proto
 _Avoid_：環境變數（真正的 OS 環境變數只有 `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` 三個，用來連上 Redis 本身）
 
 **Service prefix**  
-設定鍵的命名空間。  
-`GLOBAL:*` 為全服務共用（RabbitMQ、Logger、時區等），`<PREFIX>:*` 為單一服務專屬（如 `TELEGRAM:*`）。  
-服務只載入 `GLOBAL` 加自己的 prefix，看不到其他服務的設定。
+設定鍵的命名空間。`<PREFIX>:*` 為單一服務專屬（如 `TELEGRAM:*`）；`GLOBAL:*` 收不專屬於單一服務的設定 —— 兩個以上服務要讀同一個值（RabbitMQ、gRPC sock path），或描述外部基礎設施本身（MariaDB、Grafana、時區）。  
+服務只載入 `GLOBAL` 加自己的 prefix。這是程式的約定而非權限邊界：所有服務都以 Redis 的 default 使用者連線，讀得到任何鍵。
 
 **Contract repo**  
 `scheduler`，所有 proto 的單一真實來源。  
