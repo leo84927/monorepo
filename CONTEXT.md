@@ -62,8 +62,8 @@ _Avoid_：環境變數（真正的 OS 環境變數只有 `REDIS_HOST` / `REDIS_P
 _Avoid_：scheduler service（`scheduler` 不是一個會執行的服務，只是文件倉；真正的排程器是 `center`）
 
 **Worker**  
-consumer 服務註冊到 `core/initialize.App` 的訊息處理函式。  
-一個服務可註冊多個 worker；`center` 是唯一沒有 worker 的服務。
+consumer 服務註冊到 `core/initialize.App` 的訊息處理函式，每個 consumer 服務恰好一個；要處理多種訊息時，在 Worker 內依 **EnvelopeType** 分派。`center` 不消費訊息，因此沒有 Worker。  
+_Avoid_：用 worker 指稱 `core/initialize` 的 `MQWorker`／`HttpWorker`（那是 App 的常駐元件：AMQP 連線與 consumer、webhook／gRPC server，屬歷史名稱）
 
 **使用者**  
 系統的擁有者，全系統只有一位，所有記帳資料都屬於使用者。bot 只與使用者的私人對話（private chat）往來：**通知**推送到這裡，**指令**也只接受從這裡傳來的。
