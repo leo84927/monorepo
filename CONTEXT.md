@@ -4,7 +4,7 @@
 
 服務之間有**兩種**通訊方式，兩者並存且用途不同：
 
-- **非同步**：透過 RabbitMQ 的 **job.exchange** 傳遞 **Job**，用於排程觸發的工作
+- **非同步**：透過 RabbitMQ 的 **job.exchange** 傳遞 **Job** 觸發的訊息，用於排程觸發的工作
 - **同步**：`telegram` → `bookkeeping` 的 gRPC 直連，用於使用者輸入需要立即回應的場合
 
 此外所有服務都以 library 形式引用 `core`。
@@ -14,8 +14,8 @@
 ## Language
 
 **Job（任務）**  
-`center` 依 cron 發起的一個工作單元，以 proto 訊息發布至 **job.exchange**，由單一 consumer 服務處理。  
-_Avoid_：task、排程（「排程」專指 cron spec 本身，不指被發出的那則訊息）
+`center` 上一筆常駐的發布定義：一個排程（cron spec）、一個 **Routing key**、一份可為空的 payload。每次排程觸發，就向 **job.exchange** 發布一則訊息，由該 routing key 對應的單一 consumer 服務處理。  
+_Avoid_：task、排程（「排程」專指 Job 上的 cron spec）
 
 **job.exchange**  
 全系統唯一的 topic exchange，位於 vhost `job`。所有跨服務訊息都經過它，沒有第二個 exchange。
@@ -30,7 +30,7 @@ producer 與 consumer 的差別由 `core/config` 的 `Spec` 宣告，而不是�
 
 **Envelope**  
 跨服務訊息的通用封裝（定義於 `rabbitmq/message.proto`），承載 **EnvelopeType** 與 Data 兩部分。  
-用於接收端必須依型別決定如何解讀內容的場合；單一用途的訊息（如 CurrencyPair、CleanInbox）直接以自己的 proto 傳遞，不包 Envelope。  
+用於接收端必須依型別決定如何解讀內容的場合；單一用途的訊息（如 CurrencyPair）直接以自己的 proto 傳遞，不包 Envelope。  
 _Avoid_：wrapper、payload（Data 才是 payload）
 
 **EnvelopeType**  
@@ -79,7 +79,7 @@ consumer 服務註冊到 `core/initialize.App` 的訊息處理函式。
 
 ## Relationships
 
-- 一個 **Job** 對應一個 **Routing key**，並由恰好一個服務消費
+- 一個 **Job** 對應一個 **Routing key**，並由恰好一個服務消費；多個 Job 可以共用同一個 routing key（如 TWD 與 BTC 兩筆匯率 Job 都用 `exchange_rate`）
 - **job.exchange** 之下每個服務有一個 queue，以 `<service>.#` binding 訂閱
 - **Envelope** 承載一個 **EnvelopeType**；**CurrencyPair** 承載一個 **CurrencyType**
 - 每個服務讀取 `GLOBAL` 加自己的一個 **Service prefix**
@@ -93,6 +93,7 @@ consumer 服務註冊到 `core/initialize.App` 的訊息處理函式。
 | 發送者 | Routing key | 接收 queue | 訊息格式 |
 |---|---|---|---|
 | `center` | `exchange_rate` | exchange_rate.queue | CurrencyPair proto |
+| `center` | `bookkeeping.keepalive` | bookkeeping.queue | 無 payload（body 不被讀取） |
 | `exchange_rate` | `telegram.success` | telegram.queue | Envelope（ExchangeRate） |
 | `exchange_rate` | `telegram.error` | telegram.queue | Envelope（錯誤訊息） |
 
@@ -107,8 +108,6 @@ consumer 服務註冊到 `core/initialize.App` 的訊息處理函式。
  exchange_rate.queue    telegram.queue    bookkeeping.queue
 bind: exchange_rate.#  bind: telegram.#  bind: bookkeeping.#
 ```
-
-bookkeeping.queue 已綁定，但目前尚無 producer 發布訊息至該 routing key。
 
 ## 系統級不變條件
 
