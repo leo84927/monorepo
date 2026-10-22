@@ -21,7 +21,8 @@ _Avoid_：task、排程（「排程」專指 Job 上的 cron spec）
 全系統唯一的 topic exchange，位於 vhost `job`。所有跨服務訊息都經過它，沒有第二個 exchange。
 
 **Routing key**  
-決定訊息落到哪個 queue。命名為 `<service>`（如 `exchange_rate`）或 `<service>.<結果>`（如 `telegram.success`、`telegram.error`）。  
+決定訊息落到哪個 queue。命名為 `<service>`（如 `exchange_rate`）或 `<service>.<標籤>`（如 `telegram.success`、`bookkeeping.keepalive`）。  
+第一段決定投遞；第二段只是給人看的標籤，consumer 收不到 routing key，分派一律依 **EnvelopeType**。  
 各 queue 以 `<service>.#` wildcard binding 訂閱，因此新增 `<service>.*` 形式的 routing key 不需改動 binding。
 
 **Topology**  
