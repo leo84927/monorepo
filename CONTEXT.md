@@ -26,8 +26,8 @@ _Avoid_：task、排程（「排程」專指 Job 上的 cron spec）
 各 queue 以 `<service>.#` wildcard binding 訂閱，因此新增 `<service>.*` 形式的 routing key 不需改動 binding。
 
 **Topology**  
-exchange、queue、binding 的宣告集合，由 `core/rabbitmq` 的 `ConnectionManager.InitTopology` 在服務啟動時建立。  
-producer 與 consumer 的差別由 `core/config` 的 `Spec` 宣告，而不是由呼叫不同的載入函式決定：`Spec.Queue` 為 nil 代表只當 producer，Topology 只帶 exchange；non-nil 代表 consumer，Topology 額外帶自己那一條 queue 與 binding。
+exchange、queue、binding 的宣告集合。只有 consumer 會宣告：啟動時由 `core/rabbitmq` 的 `ConnectionManager.InitTopology` 宣告 **job.exchange** 與自己那一條 queue、binding。是不是 consumer 由 `core/config` 的 `Spec.Queue` 決定（nil 即只當 producer）。  
+producer 不宣告任何 topology：`center` 發布的訊息要送達，前提是目標 consumer 至少啟動過一次（exchange 與 queue 皆為 durable，宣告後留在 broker 上）。
 
 **Envelope**  
 跨服務訊息的通用封裝（定義於 `rabbitmq/message.proto`），承載 **EnvelopeType** 與 Data 兩部分。  
