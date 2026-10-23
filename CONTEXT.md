@@ -46,6 +46,20 @@ base 貨幣 + counter 貨幣清單 + **CurrencyType** 的組合。
 `FIAT` 或 `CRYPTO`，決定 `exchange_rate` 查詢哪個外部 API。  
 這是分派的唯一依據。
 
+**Watchlist（自選股清單）**  
+一個 **市場** + 該市場的 **代號** 清單。  
+由 `center` 在排程設定中指定，`stock` 消費。
+
+**市場（Market）**  
+以國家區分的股市，如台股、美股，決定 `stock` 查詢哪個外部資料源。  
+這是分派的唯一依據。  
+_Avoid_：用「市場」指上市、上櫃（見 Flagged ambiguities）
+
+**代號（Symbol）**  
+在一個 **市場** 內識別一檔股票或 ETF 的字串，格式由市場決定。  
+台股為上市／上櫃前綴加證券代號：`tse_2330`（上市）、`otc_6488`（上櫃），前綴沿用 TWSE MIS 的寫法。  
+_Avoid_：只指 `2330` 那一段時說「代號」（那是證券代號）
+
 **設定鍵（Setting key）**  
 存放在 Upstash Redis 的一筆設定值。  
 服務啟動時由 `core/config` 一次性載入為記憶體中的設定，執行期不再回查 Redis。  
@@ -98,7 +112,7 @@ _Avoid_：單獨說 group 或「群組」（與 Telegram 的群組對話混淆�
 
 - 一個 **Job** 對應一個 **Routing key**，並由恰好一個服務消費；多個 Job 可以共用同一個 routing key（如 TWD 與 BTC 兩筆匯率 Job 都用 `exchange_rate`）
 - **job.exchange** 之下每個服務有一個 queue，以 `<service>.#` binding 訂閱
-- **Envelope** 承載一個 **EnvelopeType**；**CurrencyPair** 承載一個 **CurrencyType**
+- **Envelope** 承載一個 **EnvelopeType**；**CurrencyPair** 承載一個 **CurrencyType**；**Watchlist** 承載一個 **市場** 與多個 **代號**
 - 每個服務讀取 `GLOBAL` 加自己的一個 **Service prefix**
 - 所有服務都依賴 **Contract repo** 與 `core`
 - `telegram` 是 `bookkeeping` 的 gRPC client；這是全系統唯一的服務間同步呼叫。兩端都以 `otelgrpc` 的
@@ -173,3 +187,4 @@ SIGTERM 之後的順序：errgroup 收攤 → `RabbitmqCM.Close()` → OTLP flus
 ## Flagged ambiguities
 
 - **`scheduler` 一詞有兩個意思**：`Contract repo` 的 repo 名稱，以及 `center` 內部的 cron 元件（`center/scheduler/`）。提到跨服務的 proto 時用 **Contract repo**，提到 cron 時明確寫 `center/scheduler`。
+- **「市場」一詞有兩個層級**：本系統的 **市場** 指台股、美股；證交所的「市場別」指上市、上櫃。後者在本系統不叫市場，而是台股 **代號** 的前綴（`tse_`／`otc_`）。
