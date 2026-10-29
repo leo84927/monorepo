@@ -26,3 +26,7 @@
 	path = bookkeeping
 	url = git@github.com:leo84927/bookkeeping.git
 	branch = master
+[submodule "stock"]
+	path = stock
+	url = git@github.com:leo84927/stock.git
+	branch = master
