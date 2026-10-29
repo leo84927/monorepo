@@ -102,6 +102,7 @@ _Avoid_：單獨說 group 或「群組」（與 Telegram 的群組對話混淆�
 |---|---|---|
 | `center` | 唯一 producer | 依 cron 發起 **Job**，發布至 **job.exchange**。不消費任何訊息。 |
 | `exchange_rate` | consumer + producer | 消費 **CurrencyPair**，查詢外部匯率 API，將結果包成 **Envelope** 轉發給 `telegram`。 |
+| `stock` | consumer + producer | 消費 **Watchlist**，依 **市場** 查詢外部股價資料源，將結果包成 **Envelope** 轉發給 `telegram`。 |
 | `telegram` | consumer + gRPC client | 消費 **Envelope**，依 **EnvelopeType** 格式化成 **通知** 推送給使用者；接收 Telegram webhook 處理 **指令**，需要記帳資料時以 gRPC 查詢 `bookkeeping`。 |
 | `bookkeeping` | consumer + gRPC server | 記帳服務。**全系統唯一可存取資料庫的服務**；系統內尚無寫入路徑，gRPC 只提供查詢。 |
 | `core` | library | 共用基礎建設，以 `go get github.com/leo84927/core/v2` 引用，非獨立執行的服務。 |
@@ -124,20 +125,23 @@ _Avoid_：單獨說 group 或「群組」（與 Telegram 的群組對話混淆�
 | 發送者 | Routing key | 接收 queue | 訊息格式 |
 |---|---|---|---|
 | `center` | `exchange_rate` | exchange_rate.queue | CurrencyPair proto |
+| `center` | `stock` | stock.queue | Watchlist proto |
 | `center` | `bookkeeping.keepalive` | bookkeeping.queue | 無 payload（body 不被讀取） |
 | `exchange_rate` | `telegram.success` | telegram.queue | Envelope（ExchangeRate） |
 | `exchange_rate` | `telegram.error` | telegram.queue | Envelope（錯誤訊息） |
+| `stock` | `telegram.success` | telegram.queue | Envelope（StockPrice） |
+| `stock` | `telegram.error` | telegram.queue | Envelope（錯誤訊息） |
 
 ```
-                    job.exchange (topic)
-                              │
-          ┌───────────────────┼───────────────────┐
-          │                   │                   │
-    exchange_rate         telegram.*         bookkeeping
-          │                   │                   │
-          ▼                   ▼                   ▼
- exchange_rate.queue    telegram.queue    bookkeeping.queue
-bind: exchange_rate.#  bind: telegram.#  bind: bookkeeping.#
+                              job.exchange (topic)
+                                        │
+          ┌───────────────────┬─────────┴─────────┬───────────────────┐
+          │                   │                   │                   │
+    exchange_rate           stock             telegram.*         bookkeeping
+          │                   │                   │                   │
+          ▼                   ▼                   ▼                   ▼
+ exchange_rate.queue     stock.queue        telegram.queue    bookkeeping.queue
+bind: exchange_rate.#   bind: stock.#      bind: telegram.#  bind: bookkeeping.#
 ```
 
 ## 系統級不變條件
@@ -158,6 +162,7 @@ bind: exchange_rate.#  bind: telegram.#  bind: bookkeeping.#
 | 位置                                             | 值      | 重試              | 承載機制                                                                                        |
 |-------------------------------------------------|---------|------------------|------------------------------------------------------------------------------------------------|
 | `exchange_rate` → 向第三方查詢匯率                 | 5s      | X                | `http.Client.Timeout`；`main` 建**一個** client 傳給兩個 adapter                                  |
+| `stock` → 向 TWSE MIS 查詢股價                     | 10s     | X                | `http.Client.Timeout`；一則 **Watchlist** 只打一次                                                |
 | `telegram` → Telegram Bot API（getMe）           | 5s      | X                | 同一個 client 的 `Timeout`；失敗**不重試、直接不啟動**，重試交給 systemd                              |
 | `telegram` → Telegram Bot API（sendMessage）     | 單次 5s  | **V** `{3, 20s}` | `http.Client.Timeout` ＋ `BotSender.Send` 內部的 backoff                                         |
 | `telegram` → `bookkeeping` gRPC                 | 5s      | X                | 呼叫端 `context.WithTimeout`；gRPC 自動把 deadline 傳給 `bookkeeping`                           |
@@ -169,7 +174,7 @@ bind: exchange_rate.#  bind: telegram.#  bind: bookkeeping.#
 | Redis 讀取／寫入                                 | 各 5s   | X                | `ReadTimeout`／`WriteTimeout`，`core/config` 寫死                                                |
 | RabbitMQ 發布                                   | **無**  | **V** `{3, 5s}`  | `ConnectionManager.Config`；單次發布沒有獨立 timeout，只有重試總預算                             |
 
-**`*http.Client` 是建構子的必填參數。** 需要對外發 HTTP 請求的型別一律從呼叫端收 `*http.Client`，不在套件內自建 —— 上表每個值才有唯一的落點，而不是散在各處的 `&http.Client{}`。`core` 全庫沒有 import `net/http`，所以這條規則的約束對象只有 `exchange_rate` 與 `telegram` 兩端。
+**`*http.Client` 是建構子的必填參數。** 需要對外發 HTTP 請求的型別一律從呼叫端收 `*http.Client`，不在套件內自建 —— 上表每個值才有唯一的落點，而不是散在各處的 `&http.Client{}`。`core` 全庫沒有 import `net/http`，所以這條規則的約束對象只有 `exchange_rate`、`stock`、`telegram` 三端。
 
 ### 關機等待
 

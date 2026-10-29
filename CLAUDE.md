@@ -33,6 +33,7 @@
 | core | `./core/CLAUDE.md` |
 | center | `./center/CLAUDE.md` |
 | exchange_rate | `./exchange_rate/CLAUDE.md` |
+| stock | `./stock/CLAUDE.md` |
 | telegram | `./telegram/CLAUDE.md` |
 | bookkeeping | `./bookkeeping/CLAUDE.md` |
 
